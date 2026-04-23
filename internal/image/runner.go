@@ -249,16 +249,18 @@ func (r *Runner) runOnce(ctx context.Context, opt RunOptions, result *RunResult)
 	messageID := uuid.NewString()
 
 	// 统一把 model 强制为 "auto":对齐参考实现(只通过 system_hints=["picture_v2"]
-	// 区分图像任务),避免 chatgpt-freeaccount / chatgpt-paid 之间的 model slug 差异。
+	// 区分图像任务)。
+	// 注意:免费账号(persona=chatgpt-freeaccount)也可以生成图片,只要 daily_image_quota > 0。
+	// 不再按 persona 拒绝请求;persona 仅做日志记录。
 	upstreamModel := "auto"
-	if opt.UpstreamModel != "" && opt.UpstreamModel != "auto" && !cr.IsFreeAccount() {
-		// 付费账号如果明确传了 upstream slug 且不是 auto,可以尊重用户传入
-		// (但我们现有模型库没有 image 专用 slug,保留扩展点)
-		upstreamModel = opt.UpstreamModel
-	} else if cr.IsFreeAccount() && opt.UpstreamModel != "" && opt.UpstreamModel != "auto" {
-		logger.L().Warn("image: free account requesting premium model, downgrade to auto",
-			zap.Uint64("account_id", lease.Account.ID),
-			zap.String("requested_model", opt.UpstreamModel))
+	if opt.UpstreamModel != "" && opt.UpstreamModel != "auto" {
+		if cr.IsFreeAccount() {
+			logger.L().Info("image: free account, force upstream model to auto",
+				zap.Uint64("account_id", lease.Account.ID),
+				zap.String("requested_model", opt.UpstreamModel))
+		} else {
+			upstreamModel = opt.UpstreamModel
+		}
 	}
 
 	// 5) 单轮 picture_v2:SSE 里直接给图就走 SSE 结果,没给就短轮询补一下。

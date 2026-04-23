@@ -172,6 +172,28 @@ func (d *DAO) ListAllActiveIDs(ctx context.Context) ([]uint64, error) {
 	return ids, err
 }
 
+// QuotaSummary 全局额度汇总。
+type QuotaSummary struct {
+	TotalRemaining int64 `db:"total_remaining" json:"total_remaining"` // 所有健康账号剩余额度之和
+	TotalCapacity  int64 `db:"total_capacity"  json:"total_capacity"`  // 所有健康账号上限之和
+	ActiveAccounts int64 `db:"active_accounts" json:"active_accounts"` // 健康账号数
+}
+
+// SumQuota 汇总所有健康未软删账号的额度(仅统计已探测过的,image_quota_updated_at NOT NULL)。
+func (d *DAO) SumQuota(ctx context.Context) (*QuotaSummary, error) {
+	var s QuotaSummary
+	err := d.db.GetContext(ctx, &s, `
+SELECT
+  COALESCE(SUM(image_quota_remaining), 0) AS total_remaining,
+  COALESCE(SUM(image_quota_total),     0) AS total_capacity,
+  COUNT(*)                                AS active_accounts
+FROM oai_accounts
+WHERE deleted_at IS NULL
+  AND status NOT IN ('dead', 'suspicious')
+  AND image_quota_updated_at IS NOT NULL`)
+	return &s, err
+}
+
 func (d *DAO) Update(ctx context.Context, a *Account) error {
 	_, err := d.db.ExecContext(ctx,
 		`UPDATE oai_accounts

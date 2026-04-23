@@ -172,6 +172,7 @@ func main() {
 	adminUsageH := usage.NewAdminHandler(usageQDAO)
 	meUsageH := usage.NewMeHandler(usageQDAO)
 	meImageH := image.NewMeHandler(imageDAO)
+	adminImageH := image.NewAdminHandler(imageDAO)
 
 	mailSvc := mailer.New(mailer.Config{
 		Host:     cfg.SMTP.Host,
@@ -279,8 +280,9 @@ func main() {
 		AdminKeyH:   adminKeyH,
 		AdminUsageH: adminUsageH,
 
-		MeUsageH: meUsageH,
-		MeImageH: meImageH,
+		MeUsageH:    meUsageH,
+		MeImageH:    meImageH,
+		AdminImageH: adminImageH,
 
 		RechargeH:      rechargeH,
 		AdminRechargeH: adminRechargeH,

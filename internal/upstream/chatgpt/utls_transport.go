@@ -204,9 +204,15 @@ func (rt *utlsRoundTripper) dialRaw(ctx context.Context, addr string) (net.Conn,
 	if err != nil {
 		return nil, fmt.Errorf("dial proxy %s: %w", proxyAddr, err)
 	}
-	// HTTPS 代理本身要先 TLS 握手(走标准 tls,不需伪装指纹,代理一般不卡 JA3)
+	// HTTPS 代理本身要先 TLS 握手(走标准 tls,不需伪装指纹,代理一般不卡 JA3)。
+	// 部分商业代理使用私有 CA 或自签名证书,标准 CA 库无法验证;
+	// InsecureSkipVerify 只作用于「到代理服务器」这一段,不影响后续 uTLS 握手
+	// 对 chatgpt.com 的证书验证(两段是独立的 TLS 连接)。
 	if strings.EqualFold(rt.proxyURL.Scheme, "https") {
-		tlsConn := tls.Client(conn, &tls.Config{ServerName: rt.proxyURL.Hostname()})
+		tlsConn := tls.Client(conn, &tls.Config{
+			ServerName:         rt.proxyURL.Hostname(),
+			InsecureSkipVerify: true, //nolint:gosec
+		})
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			_ = conn.Close()
 			return nil, fmt.Errorf("tls handshake to https proxy: %w", err)
