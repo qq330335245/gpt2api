@@ -43,6 +43,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
+      - name: Prepare runtime config
+        run: |
+          cp configs/config.example.yaml configs/config.yaml
+
       - name: Build backend + goose for linux/arm64
         run: |
           mkdir -p deploy/bin
